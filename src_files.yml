@@ -10,3 +10,16 @@ icache-intc:
     lint_mux.sv,
     RoutingBlock_2ch_Req_icache_intc.sv,    
 ]
+  jg_slint_top_name: [
+    icache_intc
+  ]
+  jg_slint_elab_opt: [
+  ]
+  jg_slint_postelab_cmds: [
+  ]
+  jg_slint_clocks: [
+    clk_i,
+  ]
+  jg_slint_resets: [
+    ~rst_ni,
+  ]
