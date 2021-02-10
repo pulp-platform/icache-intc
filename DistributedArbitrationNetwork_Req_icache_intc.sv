@@ -60,6 +60,31 @@ module DistributedArbitrationNetwork_Req_icache_intc
    output logic [UID_WIDTH-1:0]                   UID_o,
    input  logic                                   grant_i
 );
+   logic [2**$clog2(N_CORES)-1:0]                    request;
+   logic [2**$clog2(N_CORES)-1:0][ADDRESS_WIDTH-1:0] address;
+   logic [2**$clog2(N_CORES)-1:0][    UID_WIDTH-1:0] UID_s;
+   logic [2**$clog2(N_CORES)-1:0]                    grant;
+   if (2**$clog2(N_CORES) != N_CORES) begin : DUMMY_PORTS // use power of 2 ports
+      logic [2**$clog2(N_CORES)-N_CORES-1:0]                    request_dummy;
+      logic [2**$clog2(N_CORES)-N_CORES-1:0][ADDRESS_WIDTH-1:0] address_dummy;
+      logic [2**$clog2(N_CORES)-N_CORES-1:0][    UID_WIDTH-1:0] UID_dummy;    
+      logic [2**$clog2(N_CORES)-N_CORES-1:0]                    grant_dummy;  
+
+      assign request_dummy = '0;
+      assign address_dummy = '0;
+      assign UID_dummy     = '0;
+
+      assign request = {request_dummy, request_i};
+      assign address = {address_dummy, address_i};
+      assign UID_s   = {UID_dummy    , UID_i};
+      assign {grant_dummy, grant_o} = grant;
+   end else begin
+      assign request = request_i;
+      assign address = address_i;
+      assign UID_s   = UID_i;
+      assign grant_o = grant;
+   end
+
    logic [$clog2(N_CORES)-1:0]                    arb_FLAG_o;
    genvar j,k;
    generate
@@ -72,15 +97,15 @@ module DistributedArbitrationNetwork_Req_icache_intc
           )
           Req_Arb_Node_icache_intc_i
           (
-            .request_ch0_i   ( request_i [0] ),
-            .address_ch0_i   ( address_i [0] ),
-            .UID_ch0_i       ( UID_i     [0] ),
-            .grant_ch0_o     ( grant_o   [0] ),
+            .request_ch0_i   ( request [0] ),
+            .address_ch0_i   ( address [0] ),
+            .UID_ch0_i       ( UID_s     [0] ),
+            .grant_ch0_o     ( grant   [0] ),
 
-            .request_ch1_i   ( request_i [1] ),
-            .address_ch1_i   ( address_i [1] ),    
-            .UID_ch1_i       ( UID_i     [1] ),
-            .grant_ch1_o     ( grant_o   [1] ),
+            .request_ch1_i   ( request [1] ),
+            .address_ch1_i   ( address [1] ),
+            .UID_ch1_i       ( UID_s     [1] ),
+            .grant_ch1_o     ( grant   [1] ),
 
             .request_o       ( request_o     ),
             .address_o       ( address_o     ),
@@ -89,7 +114,7 @@ module DistributedArbitrationNetwork_Req_icache_intc
 
             .Flag_i          ( arb_FLAG_o    )
          );
-      end 
+      end
       else
       begin : MULTI_MASTER
           logic [ADDRESS_WIDTH-1:0]   address_int  [N_CORES-3:0];
@@ -117,7 +142,7 @@ module DistributedArbitrationNetwork_Req_icache_intc
                         .grant_ch0_o     ( grant_int   [2*k]                ),
 
                         .request_ch1_i   ( request_int [2*k+1]              ),
-                        .address_ch1_i   ( address_int [2*k+1]              ),    
+                        .address_ch1_i   ( address_int [2*k+1]              ),
                         .UID_ch1_i       ( UID_int     [2*k+1]              ),
                         .grant_ch1_o     ( grant_int   [2*k+1]              ),
 
@@ -128,15 +153,15 @@ module DistributedArbitrationNetwork_Req_icache_intc
 
                         .Flag_i          ( arb_FLAG_o[$clog2(N_CORES)-j-1]  )
                     );
-                  end 
+                  end
                   else if ( j < $clog2(N_CORES) - 1 )
                         begin : INTERNAL_NODES
-                          Req_Arb_Node_icache_intc 
+                          Req_Arb_Node_icache_intc
                           #( 
                               .ADDRESS_WIDTH ( ADDRESS_WIDTH ), 
                               .UID_WIDTH     ( UID_WIDTH     )
                           )
-                          Req_Arb_Node_icache_intc_i 
+                          Req_Arb_Node_icache_intc_i
                           (
 
                               .request_ch0_i   ( request_int [((2**j)*2-2) + 2*k]    ),
@@ -145,7 +170,7 @@ module DistributedArbitrationNetwork_Req_icache_intc
                               .grant_ch0_o     ( grant_int   [((2**j)*2-2) + 2*k]    ),
 
                               .request_ch1_i   ( request_int [((2**j)*2-2) + 2*k+1]  ),
-                              .address_ch1_i   ( address_int [((2**j)*2-2) + 2*k+1]  ),    
+                              .address_ch1_i   ( address_int [((2**j)*2-2) + 2*k+1]  ),
                               .UID_ch1_i       ( UID_int     [((2**j)*2-2) + 2*k+1]  ),
                               .grant_ch1_o     ( grant_int   [((2**j)*2-2) + 2*k+1]  ),
 
@@ -154,27 +179,27 @@ module DistributedArbitrationNetwork_Req_icache_intc
                               .UID_o           ( UID_int     [((2**(j-1))*2-2) + k]  ),
                               .grant_i         ( grant_int   [((2**(j-1))*2-2) + k]  ),
 
-                              .Flag_i          ( arb_FLAG_o  [$clog2(N_CORES)-j-1]   )   
+                              .Flag_i          ( arb_FLAG_o  [$clog2(N_CORES)-j-1]   )
                           );
-                        end 
+                        end
                      else
                         begin : INPUT_NODES
                              Req_Arb_Node_icache_intc 
                              #( 
-                                 .ADDRESS_WIDTH ( ADDRESS_WIDTH ), 
+                                 .ADDRESS_WIDTH ( ADDRESS_WIDTH ),
                                  .UID_WIDTH     ( UID_WIDTH     )
                              )
                              Req_Arb_Node_icache_intc_i
                              (
-                                 .request_ch0_i   ( request_i   [2*k]                   ),
-                                 .address_ch0_i   ( address_i   [2*k]                   ),
-                                 .UID_ch0_i       ( UID_i       [2*k]                   ),
-                                 .grant_ch0_o     ( grant_o     [2*k]                   ),
+                                 .request_ch0_i   ( request     [2*k]                   ),
+                                 .address_ch0_i   ( address     [2*k]                   ),
+                                 .UID_ch0_i       ( UID_s       [2*k]                   ),
+                                 .grant_ch0_o     ( grant       [2*k]                   ),
 
-                                 .request_ch1_i   ( request_i   [2*k+1]                 ),
-                                 .address_ch1_i   ( address_i   [2*k+1]                 ),    
-                                 .UID_ch1_i       ( UID_i       [2*k+1]                 ),
-                                 .grant_ch1_o     ( grant_o     [2*k+1]                 ),
+                                 .request_ch1_i   ( request     [2*k+1]                 ),
+                                 .address_ch1_i   ( address     [2*k+1]                 ),
+                                 .UID_ch1_i       ( UID_s       [2*k+1]                 ),
+                                 .grant_ch1_o     ( grant       [2*k+1]                 ),
 
                                  .request_o       ( request_int [((2**(j-1))*2-2) + k]  ),
                                  .address_o       ( address_int [((2**(j-1))*2-2) + k]  ),
